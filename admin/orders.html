@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order Management — GO Bike Delivery Admin</title>
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__title">Order Management</div>
+    <div style="width:40px;"></div>
+  </header>
+
+  <main class="screen">
+    <div class="row" style="gap:8px;overflow-x:auto;padding-bottom:4px;" id="filterRow">
+      <button class="pill-tag active-filter" data-f="all">All</button>
+      <button class="pill-tag" data-f="pending">Pending</button>
+      <button class="pill-tag" data-f="accepted">Accepted</button>
+      <button class="pill-tag" data-f="picked_up">Picked Up</button>
+      <button class="pill-tag" data-f="in_transit">In Transit</button>
+      <button class="pill-tag" data-f="delivered">Delivered</button>
+      <button class="pill-tag" data-f="cancelled">Cancelled</button>
+    </div>
+    <div class="stack mt-16" id="list"></div>
+  </main>
+
+  <nav class="bottomnav">
+    <a class="navlink" href="dashboard.html" data-page="dashboard.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</a>
+    <a class="navlink active" href="orders.html" data-page="orders.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>Orders</a>
+    <a class="navlink" href="riders.html" data-page="riders.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 9h4l2.5 4.5"/></svg>Riders</a>
+    <a class="navlink" href="rates.html" data-page="rates.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>Rates</a>
+    <a class="navlink" href="more.html" data-page="more.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>More</a>
+  </nav>
+</div>
+
+<style>
+  .pill-tag{background:var(--surface-alt);white-space:nowrap;border:1.5px solid transparent;}
+  .pill-tag.active-filter{background:var(--orange-100);color:var(--orange-700);border-color:var(--orange-500);}
+  [data-theme="dark"] .pill-tag.active-filter{background:rgba(255,122,26,.16);}
+</style>
+
+<script src="../js/firebase.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/fee-calculator.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/seed.js"></script>
+<script>
+  UI.requireAuth('admin');
+  UI.markActiveNav();
+  let filter = 'all';
+  let allOrders = [];
+
+  async function draw() {
+    allOrders = await Store.listAllOrders();
+    const filtered = filter === 'all' ? allOrders : allOrders.filter(o => o.status === filter);
+    const list = document.getElementById('list');
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty"><p class="muted">No orders in this category.</p></div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(o => `
+      <div class="card order-card">
+        <div class="row-between">
+          <span class="order-card__id">#${o.id.toUpperCase()}</span>
+          ${UI.statusBadgeHtml(o.status)}
+        </div>
+        <div class="route-strip">
+          <div class="route-strip__rail">
+            <div class="route-strip__dot route-strip__dot--pickup"></div>
+            <div class="route-strip__line"></div>
+            <div class="route-strip__dot route-strip__dot--drop"></div>
+          </div>
+          <div class="route-strip__body">
+            <div class="route-strip__point"><span>Pickup</span><p>${o.pickup.address}</p></div>
+            <div class="route-strip__point"><span>Drop-off</span><p>${o.dropoff.address}</p></div>
+          </div>
+        </div>
+        <div class="order-card__foot">
+          <span class="muted">${o.city} · ${o.weightKg}kg · ${UI.timeAgo(o.createdAt)}</span>
+          <span class="order-card__price">${FeeCalc.formatCurrency(o.fee)}</span>
+        </div>
+        ${!['delivered','cancelled'].includes(o.status) ? `
+        <div class="row mt-8">
+          <button class="btn btn-outline btn-sm cancel-btn" data-id="${o.id}" style="color:var(--danger);border-color:var(--danger);">Cancel Order</button>
+        </div>` : ''}
+      </div>`).join('');
+
+    list.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', async () => {
+      await Store.updateOrderStatus(btn.dataset.id, 'cancelled');
+      UI.showToast('Order cancelled', 'success');
+      draw();
+    }));
+  }
+
+  document.getElementById('filterRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    filter = btn.dataset.f;
+    document.querySelectorAll('#filterRow button').forEach(b => b.classList.toggle('active-filter', b === btn));
+    draw();
+  });
+
+  draw();
+</script>
+</body>
+</html>

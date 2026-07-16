@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delivery Rates — GO Bike Delivery Admin</title>
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__title">Delivery Rates</div>
+    <div style="width:40px;"></div>
+  </header>
+
+  <main class="screen">
+    <div class="field mb-16">
+      <label>Select city</label>
+      <select class="select input" id="citySelect"></select>
+    </div>
+
+    <div class="card stack" style="gap:16px;">
+      <p class="eyebrow">Weight-based tiers</p>
+      <div class="field">
+        <label>Base price — 0 to 3 kg (MMK)</label>
+        <input class="input" id="rBase" type="number" min="0">
+      </div>
+      <div class="field">
+        <label>Extra per kg — 3 to 5 kg (MMK/kg)</label>
+        <input class="input" id="rTier1" type="number" min="0">
+      </div>
+      <div class="field">
+        <label>Extra per kg — 5 to 20 kg (MMK/kg)</label>
+        <input class="input" id="rTier2" type="number" min="0">
+      </div>
+      <div class="field">
+        <label>Extra per kg — 20 kg and above (MMK/kg)</label>
+        <input class="input" id="rTier3" type="number" min="0">
+      </div>
+      <div class="field">
+        <label>Distance rate (MMK/km)</label>
+        <input class="input" id="rPerKm" type="number" min="0">
+      </div>
+      <button class="btn btn-primary" id="saveBtn">Save Rate Card</button>
+    </div>
+
+    <!-- Live preview -->
+    <div class="card mt-16">
+      <p class="eyebrow mb-12">Live preview</p>
+      <div class="grid-2 mb-12">
+        <div class="field"><label>Sample weight (kg)</label><input class="input" id="prevWeight" type="number" value="7" min="0.1" step="0.1"></div>
+        <div class="field"><label>Sample distance (km)</label><input class="input" id="prevDistance" type="number" value="5" min="0" step="0.5"></div>
+      </div>
+      <div class="stack" id="prevBreakdown" style="gap:6px;"></div>
+      <div class="divider mt-12 mb-12"></div>
+      <div class="row-between"><span style="font-weight:700;">Total fare</span><span class="order-card__price" id="prevTotal">—</span></div>
+    </div>
+
+    <!-- All cities overview -->
+    <section class="mt-24">
+      <h3 class="h3 mb-12">All cities</h3>
+      <div class="stack" id="cityList"></div>
+    </section>
+  </main>
+
+  <nav class="bottomnav">
+    <a class="navlink" href="dashboard.html" data-page="dashboard.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</a>
+    <a class="navlink" href="orders.html" data-page="orders.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>Orders</a>
+    <a class="navlink" href="riders.html" data-page="riders.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 9h4l2.5 4.5"/></svg>Riders</a>
+    <a class="navlink active" href="rates.html" data-page="rates.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>Rates</a>
+    <a class="navlink" href="more.html" data-page="more.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>More</a>
+  </nav>
+</div>
+
+<script src="../js/firebase.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/fee-calculator.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/seed.js"></script>
+<script>
+  UI.requireAuth('admin');
+  UI.markActiveNav();
+  let currentCard = null;
+
+  async function loadCity(city) {
+    currentCard = await Store.getRateCard(city);
+    document.getElementById('rBase').value = currentCard.base;
+    document.getElementById('rTier1').value = currentCard.tier1PerKg;
+    document.getElementById('rTier2').value = currentCard.tier2PerKg;
+    document.getElementById('rTier3').value = currentCard.tier3PerKg;
+    document.getElementById('rPerKm').value = currentCard.perKmRate;
+    updatePreview();
+  }
+
+  function readFormCard() {
+    return {
+      city: currentCard.city,
+      currency: currentCard.currency || 'MMK',
+      base: parseFloat(document.getElementById('rBase').value) || 0,
+      tier1PerKg: parseFloat(document.getElementById('rTier1').value) || 0,
+      tier2PerKg: parseFloat(document.getElementById('rTier2').value) || 0,
+      tier3PerKg: parseFloat(document.getElementById('rTier3').value) || 0,
+      perKmRate: parseFloat(document.getElementById('rPerKm').value) || 0
+    };
+  }
+
+  function updatePreview() {
+    const card = readFormCard();
+    const weightKg = parseFloat(document.getElementById('prevWeight').value) || 0;
+    const distanceKm = parseFloat(document.getElementById('prevDistance').value) || 0;
+    // Fake two points distanceKm apart on a flat line so calcDistanceKm isn't needed here
+    const quote = FeeCalc.calculateDeliveryFee({
+      rateCard: card, weightKg,
+      pickup: { lat: 0, lng: 0 }, dropoff: { lat: distanceKm / 111, lng: 0 },
+      parcelType: 'standard'
+    });
+    document.getElementById('prevBreakdown').innerHTML = quote.breakdown.map(b => `
+      <div class="row-between"><span class="muted">${b.label}</span><span class="mono">${FeeCalc.formatCurrency(b.amount, card.currency)}</span></div>`).join('');
+    document.getElementById('prevTotal').textContent = FeeCalc.formatCurrency(quote.fee, card.currency);
+  }
+
+  ['rBase','rTier1','rTier2','rTier3','rPerKm','prevWeight','prevDistance'].forEach(id =>
+    document.getElementById(id).addEventListener('input', updatePreview));
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    await Store.saveRateCard(readFormCard());
+    UI.showToast('Rate card saved', 'success');
+    drawCityList();
+  });
+
+  async function drawCityList() {
+    const cards = await Store.listRateCards();
+    document.getElementById('cityList').innerHTML = cards.map(c => `
+      <div class="card row-between">
+        <div>
+          <div style="font-weight:700;">${c.city}</div>
+          <div class="muted" style="font-size:12px;">Base ${c.base.toLocaleString()} MMK · ${c.perKmRate}/km</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('citySelect').value='${c.city}';loadCity('${c.city}');window.scrollTo({top:0,behavior:'smooth'});">Edit</button>
+      </div>`).join('');
+  }
+
+  (async function () {
+    const cards = await Store.listRateCards();
+    const select = document.getElementById('citySelect');
+    select.innerHTML = cards.map(c => `<option value="${c.city}">${c.city}</option>`).join('');
+    select.addEventListener('change', () => loadCity(select.value));
+    await loadCity(select.value);
+    drawCityList();
+  })();
+</script>
+</body>
+</html>
