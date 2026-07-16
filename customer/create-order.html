@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>New Delivery — GO Bike Delivery</title>
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  #map { width:100%; height:260px; border-radius:var(--radius-lg); border:1px solid var(--border); }
+  .leaflet-pane, .leaflet-control { z-index: 5; }
+  .parcel-chip{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--surface);transition:all .15s ease;}
+  .parcel-chip.active{border-color:var(--orange-500);background:var(--orange-100);}
+  [data-theme="dark"] .parcel-chip.active{background:rgba(255,122,26,.14);}
+  .parcel-chip svg{width:20px;height:20px;stroke:var(--orange-600);fill:none;stroke-width:1.7;}
+  .parcel-chip span{font-size:11px;font-weight:700;}
+  .summary-bar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:var(--app-max);
+    background:color-mix(in srgb, var(--surface) 92%, transparent);backdrop-filter:blur(16px);
+    border-top:1px solid var(--border);padding:14px var(--gutter) calc(14px + env(safe-area-inset-bottom));z-index:80;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a href="dashboard.html" class="topbar__icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1" fill="none"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <div class="topbar__title">New Delivery</div>
+    <div style="width:40px;"></div>
+  </header>
+
+  <main class="screen" style="padding-bottom:150px;">
+    <div class="stack">
+
+      <!-- City -->
+      <div class="card">
+        <div class="field">
+          <label>City</label>
+          <select class="select input" id="citySelect"></select>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="card">
+        <div class="row-between mb-12">
+          <h3 class="h3">Set locations</h3>
+        </div>
+        <div class="segmented mb-12" id="pinMode">
+          <button class="active" data-mode="pickup">📍 Pickup</button>
+          <button data-mode="dropoff">🏁 Drop-off</button>
+        </div>
+        <div id="map"></div>
+        <p class="muted mt-8">Tap the map to drop a pin. Switch tabs above to set the other point.</p>
+
+        <div class="stack mt-16">
+          <div class="field">
+            <label>Pickup address / landmark</label>
+            <input class="input" id="pickupAddr" placeholder="Tap map first, then name this spot">
+          </div>
+          <div class="field">
+            <label>Drop-off address / landmark</label>
+            <input class="input" id="dropoffAddr" placeholder="Tap map first, then name this spot">
+          </div>
+        </div>
+        <div class="row-between mt-12">
+          <span class="muted">Distance</span>
+          <span class="mono" style="font-weight:700;" id="distanceOut">— km</span>
+        </div>
+      </div>
+
+      <!-- Parcel -->
+      <div class="card">
+        <h3 class="h3 mb-12">Parcel details</h3>
+        <label class="muted" style="font-size:12px;font-weight:700;">PARCEL TYPE</label>
+        <div class="grid-3 mt-8 mb-16" id="parcelTypes">
+          <button class="parcel-chip active" data-type="standard"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 11h18"/></svg><span>Standard</span></button>
+          <button class="parcel-chip" data-type="food"><svg viewBox="0 0 24 24"><path d="M6 2v7a3 3 0 0 0 6 0V2M9 9v13M18 2c-2 2-2 5-2 5v13"/></svg><span>Food</span></button>
+          <button class="parcel-chip" data-type="fragile"><svg viewBox="0 0 24 24"><path d="M12 2l3 6-3 3-3-3 3-6ZM6 22l6-8 6 8"/></svg><span>Fragile</span></button>
+          <button class="parcel-chip" data-type="document"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span>Document</span></button>
+          <button class="parcel-chip" data-type="electronics"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg><span>Electronics</span></button>
+        </div>
+        <div class="field">
+          <label>Parcel weight (kg)</label>
+          <input class="input" id="weightInput" type="number" min="0.1" step="0.1" value="2" placeholder="e.g. 2.5">
+        </div>
+        <div class="field mt-12">
+          <label>Note for rider (optional)</label>
+          <textarea class="input" id="noteInput" placeholder="e.g. Call on arrival, leave with security"></textarea>
+        </div>
+      </div>
+
+      <!-- Fee breakdown -->
+      <div class="card" id="breakdownCard" style="display:none;">
+        <h3 class="h3 mb-12">Fare breakdown</h3>
+        <div class="stack" id="breakdownList" style="gap:8px;"></div>
+        <div class="divider mt-12 mb-12"></div>
+        <div class="row-between">
+          <span style="font-weight:700;">Total fare</span>
+          <span class="order-card__price" id="totalFare">—</span>
+        </div>
+        <div class="row-between mt-8">
+          <span class="muted">Estimated time</span>
+          <span class="muted" id="etaOut">—</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="summary-bar">
+    <div class="row-between mb-12">
+      <div>
+        <div class="muted" style="font-size:11px;">Total fare</div>
+        <div class="h2" id="barFare" style="color:var(--orange-600);">— MMK</div>
+      </div>
+      <div class="text-right">
+        <div class="muted" style="font-size:11px;">ETA</div>
+        <div style="font-weight:700;" id="barEta">—</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="confirmBtn" disabled>Confirm &amp; Book Rider</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="../js/firebase.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/fee-calculator.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/seed.js"></script>
+<script>
+  const session = UI.requireAuth('customer');
+
+  // Approx city centers for map framing (OpenStreetMap tiles, no API key required)
+  const CITY_CENTERS = {
+    Yangon: [16.8409, 96.1735],
+    Mandalay: [21.9588, 96.0891],
+    Naypyidaw: [19.7633, 96.0785],
+    Bago: [17.3350, 96.4800],
+    Mawlamyine: [16.4913, 97.6255],
+    Pyay: [18.8244, 95.2225],
+    Magway: [20.1500, 94.9333]
+  };
+
+  let map, pickupMarker, dropoffMarker, routeLine;
+  let pickup = null, dropoff = null;
+  let pinMode = 'pickup';
+  let parcelType = 'standard';
+  let rateCard = null;
+
+  const pickupIcon = L.divIcon({ className: '', html: '<div style="width:16px;height:16px;border-radius:50%;background:#FF7A1A;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);"></div>', iconSize: [16,16], iconAnchor: [8,8] });
+  const dropIcon = L.divIcon({ className: '', html: '<div style="width:16px;height:16px;border-radius:50%;background:#241710;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);"></div>', iconSize: [16,16], iconAnchor: [8,8] });
+
+  async function initCitySelect() {
+    const cards = await Store.listRateCards();
+    const select = document.getElementById('citySelect');
+    select.innerHTML = cards.map(c => `<option value="${c.city}">${c.city}</option>`).join('');
+    select.value = 'Yangon';
+    rateCard = cards.find(c => c.city === 'Yangon');
+    select.addEventListener('change', async () => {
+      rateCard = await Store.getRateCard(select.value);
+      map.setView(CITY_CENTERS[select.value] || CITY_CENTERS.Yangon, 13);
+      recalc();
+    });
+  }
+
+  function initMap() {
+    const center = CITY_CENTERS.Yangon;
+    map = L.map('map', { zoomControl: false }).setView(center, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    map.on('click', (e) => {
+      const point = { lat: e.latlng.lat, lng: e.latlng.lng };
+      if (pinMode === 'pickup') {
+        pickup = point;
+        if (pickupMarker) pickupMarker.setLatLng(e.latlng); else pickupMarker = L.marker(e.latlng, { icon: pickupIcon }).addTo(map);
+        if (!document.getElementById('pickupAddr').value) document.getElementById('pickupAddr').value = `Pin @ ${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`;
+      } else {
+        dropoff = point;
+        if (dropoffMarker) dropoffMarker.setLatLng(e.latlng); else dropoffMarker = L.marker(e.latlng, { icon: dropIcon }).addTo(map);
+        if (!document.getElementById('dropoffAddr').value) document.getElementById('dropoffAddr').value = `Pin @ ${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`;
+      }
+      drawRoute();
+      recalc();
+    });
+  }
+
+  function drawRoute() {
+    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    if (pickup && dropoff) {
+      routeLine = L.polyline([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]], { color: '#E8610A', weight: 3, dashArray: '2 8', lineCap: 'round' }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+    }
+  }
+
+  document.getElementById('pinMode').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    pinMode = btn.dataset.mode;
+    document.querySelectorAll('#pinMode button').forEach(b => b.classList.toggle('active', b === btn));
+  });
+
+  document.getElementById('parcelTypes').addEventListener('click', (e) => {
+    const chip = e.target.closest('.parcel-chip');
+    if (!chip) return;
+    parcelType = chip.dataset.type;
+    document.querySelectorAll('.parcel-chip').forEach(c => c.classList.toggle('active', c === chip));
+    recalc();
+  });
+
+  document.getElementById('weightInput').addEventListener('input', recalc);
+
+  function recalc() {
+    const weightKg = parseFloat(document.getElementById('weightInput').value) || 0;
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (!pickup || !dropoff || !rateCard || weightKg <= 0) {
+      document.getElementById('breakdownCard').style.display = 'none';
+      document.getElementById('barFare').textContent = '— MMK';
+      document.getElementById('barEta').textContent = '—';
+      confirmBtn.disabled = true;
+      return;
+    }
+    const quote = FeeCalc.calculateDeliveryFee({ rateCard, weightKg, pickup, dropoff, parcelType });
+    document.getElementById('distanceOut').textContent = `${quote.distanceKm} km`;
+    document.getElementById('breakdownCard').style.display = 'block';
+    document.getElementById('breakdownList').innerHTML = quote.breakdown.map(b => `
+      <div class="row-between"><span class="muted">${b.label}</span><span class="mono">${FeeCalc.formatCurrency(b.amount, quote.currency)}</span></div>
+    `).join('');
+    document.getElementById('totalFare').textContent = FeeCalc.formatCurrency(quote.fee, quote.currency);
+    document.getElementById('etaOut').textContent = `${quote.etaMinutes} min`;
+    document.getElementById('barFare').textContent = FeeCalc.formatCurrency(quote.fee, quote.currency);
+    document.getElementById('barEta').textContent = `${quote.etaMinutes} min`;
+    confirmBtn.disabled = false;
+    confirmBtn.dataset.quote = JSON.stringify(quote);
+  }
+
+  document.getElementById('confirmBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('confirmBtn');
+    const quote = JSON.parse(btn.dataset.quote);
+    const weightKg = parseFloat(document.getElementById('weightInput').value) || 0;
+    const city = document.getElementById('citySelect').value;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loader"></span>';
+    try {
+      const order = await Store.createOrder({
+        customerId: session.userId,
+        city, parcelType, weightKg,
+        pickup: { ...pickup, address: document.getElementById('pickupAddr').value || 'Pickup pin' },
+        dropoff: { ...dropoff, address: document.getElementById('dropoffAddr').value || 'Drop-off pin' },
+        note: document.getElementById('noteInput').value.trim(),
+        distanceKm: quote.distanceKm,
+        fee: quote.fee,
+        etaMinutes: quote.etaMinutes
+      });
+      UI.showToast('Order placed! Looking for a rider…', 'success');
+      setTimeout(() => location.href = `track-order.html?id=${order.id}`, 500);
+    } catch (err) {
+      UI.showToast(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Confirm & Book Rider';
+    }
+  });
+
+  (async function boot() {
+    await initCitySelect();
+    initMap();
+  })();
+</script>
+</body>
+</html>

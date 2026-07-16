@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order History — GO Bike Delivery</title>
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__title">My Orders</div>
+    <div style="width:40px;"></div>
+  </header>
+
+  <main class="screen">
+    <div class="segmented mb-16" id="filterTabs">
+      <button class="active" data-f="all">All</button>
+      <button data-f="active">Active</button>
+      <button data-f="delivered">Delivered</button>
+      <button data-f="cancelled">Cancelled</button>
+    </div>
+    <div class="stack" id="list"></div>
+  </main>
+
+  <nav class="bottomnav">
+    <a class="navlink" href="dashboard.html" data-page="dashboard.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</a>
+    <a class="navlink active" href="order-history.html" data-page="order-history.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>Orders</a>
+    <a class="navlink" href="notifications.html" data-page="notifications.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><path d="M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>Alerts</a>
+    <a class="navlink" href="profile.html" data-page="profile.html">
+      <svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>Profile</a>
+  </nav>
+</div>
+
+<script src="../js/firebase.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/fee-calculator.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/seed.js"></script>
+<script>
+  const session = UI.requireAuth('customer');
+  UI.markActiveNav();
+  let allOrders = [];
+  let filter = 'all';
+
+  function matches(o) {
+    if (filter === 'all') return true;
+    if (filter === 'active') return ['pending','accepted','picked_up','in_transit'].includes(o.status);
+    return o.status === filter;
+  }
+
+  function draw() {
+    const list = document.getElementById('list');
+    const filtered = allOrders.filter(matches);
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty">
+        <svg viewBox="0 0 24 24" stroke-width="1.4"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
+        <p><strong>Nothing here</strong></p><p class="muted">Orders in this category will show up here.</p></div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(o => `
+      <a href="track-order.html?id=${o.id}" class="card order-card">
+        <div class="row-between">
+          <span class="order-card__id">#${o.id.toUpperCase()}</span>
+          ${UI.statusBadgeHtml(o.status)}
+        </div>
+        <div class="route-strip">
+          <div class="route-strip__rail">
+            <div class="route-strip__dot route-strip__dot--pickup"></div>
+            <div class="route-strip__line"></div>
+            <div class="route-strip__dot route-strip__dot--drop"></div>
+          </div>
+          <div class="route-strip__body">
+            <div class="route-strip__point"><span>Pickup</span><p>${o.pickup.address}</p></div>
+            <div class="route-strip__point"><span>Drop-off</span><p>${o.dropoff.address}</p></div>
+          </div>
+        </div>
+        <div class="order-card__foot">
+          <span class="muted">${UI.timeAgo(o.createdAt)} · ${o.weightKg} kg</span>
+          <span class="order-card__price">${FeeCalc.formatCurrency(o.fee)}</span>
+        </div>
+      </a>`).join('');
+  }
+
+  document.getElementById('filterTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    filter = btn.dataset.f;
+    document.querySelectorAll('#filterTabs button').forEach(b => b.classList.toggle('active', b === btn));
+    draw();
+  });
+
+  (async function () {
+    allOrders = await Store.listOrdersByCustomer(session.userId);
+    draw();
+  })();
+</script>
+</body>
+</html>

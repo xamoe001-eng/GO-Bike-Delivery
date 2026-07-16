@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order Details — GO Bike Delivery</title>
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  #trackMap{width:100%;height:200px;border-radius:var(--radius-lg);border:1px solid var(--border);}
+  .tl{display:flex;gap:12px;}
+  .tl__rail{display:flex;flex-direction:column;align-items:center;}
+  .tl__dot{width:12px;height:12px;border-radius:50%;background:var(--border);flex:none;}
+  .tl__dot.done{background:var(--orange-500);}
+  .tl__bar{width:2px;flex:1;background:var(--border);margin:2px 0;}
+  .tl__bar.done{background:var(--orange-500);}
+  .tl__item{padding-bottom:22px;}
+  .tl__item:last-child{padding-bottom:0;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a href="dashboard.html" class="topbar__icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1" fill="none"><path d="M15 6l-6 6 6 6"/></svg></a>
+    <div class="topbar__title">Order Details</div>
+    <div style="width:40px;"></div>
+  </header>
+
+  <main class="screen screen--no-nav" id="content">
+    <div class="skeleton" style="height:200px;"></div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="../js/firebase.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/fee-calculator.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/seed.js"></script>
+<script>
+  const session = UI.requireAuth('customer');
+  const orderId = new URLSearchParams(location.search).get('id');
+  const STEPS = ['pending','accepted','picked_up','in_transit','delivered'];
+
+  (async function render() {
+    const order = await Store.getOrder(orderId);
+    if (!order) { document.getElementById('content').innerHTML = '<div class="empty"><p>Order not found.</p></div>'; return; }
+
+    let rider = null;
+    if (order.riderId) rider = await Store.getUser(order.riderId);
+
+    const currentIdx = STEPS.indexOf(order.status);
+    const isCancelled = order.status === 'cancelled';
+
+    document.getElementById('content').innerHTML = `
+      <div class="stack">
+        <div class="card">
+          <div class="row-between mb-12">
+            <span class="order-card__id">#${order.id.toUpperCase()}</span>
+            ${UI.statusBadgeHtml(order.status)}
+          </div>
+          <div id="trackMap"></div>
+        </div>
+
+        <div class="card">
+          <div class="route-strip">
+            <div class="route-strip__rail">
+              <div class="route-strip__dot route-strip__dot--pickup"></div>
+              <div class="route-strip__line"></div>
+              <div class="route-strip__dot route-strip__dot--drop"></div>
+            </div>
+            <div class="route-strip__body">
+              <div class="route-strip__point"><span>Pickup</span><p style="white-space:normal;">${order.pickup.address}</p></div>
+              <div class="route-strip__point"><span>Drop-off</span><p style="white-space:normal;">${order.dropoff.address}</p></div>
+            </div>
+          </div>
+          <div class="divider mt-16 mb-16"></div>
+          <div class="grid-2">
+            <div><div class="muted" style="font-size:11px;">Parcel</div><div style="font-weight:700;">${order.parcelType} · ${order.weightKg} kg</div></div>
+            <div><div class="muted" style="font-size:11px;">Distance</div><div style="font-weight:700;">${order.distanceKm} km</div></div>
+            <div><div class="muted" style="font-size:11px;">Fare</div><div style="font-weight:700;color:var(--orange-600);">${FeeCalc.formatCurrency(order.fee)}</div></div>
+            <div><div class="muted" style="font-size:11px;">ETA</div><div style="font-weight:700;">${order.etaMinutes} min</div></div>
+          </div>
+          ${order.note ? `<div class="divider mt-16 mb-16"></div><div class="muted" style="font-size:11px;">NOTE</div><p>${order.note}</p>` : ''}
+        </div>
+
+        ${rider ? `
+        <div class="card row" style="gap:14px;">
+          <div class="avatar-fallback" style="width:46px;height:46px;font-size:16px;">${rider.name.split(' ').map(p=>p[0]).slice(0,2).join('')}</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;">${rider.name}</div>
+            <div class="muted" style="font-size:12.5px;">${rider.vehicle || 'Motorbike'} · ${rider.plate || ''}</div>
+          </div>
+          <a href="tel:${rider.phone}" class="btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg></a>
+        </div>` : ''}
+
+        <div class="card">
+          <h3 class="h3 mb-16">Order status</h3>
+          ${isCancelled ? `<div class="row"><div class="tl__dot" style="background:var(--danger);"></div><p style="margin-left:8px;font-weight:700;color:var(--danger);">Cancelled</p></div>` :
+          STEPS.map((s, i) => `
+            <div class="tl">
+              <div class="tl__rail">
+                <div class="tl__dot ${i <= currentIdx ? 'done' : ''}"></div>
+                ${i < STEPS.length - 1 ? `<div class="tl__bar ${i < currentIdx ? 'done' : ''}"></div>` : ''}
+              </div>
+              <div class="tl__item">
+                <div style="font-weight:700;font-size:13.5px;">${UI.STATUS_LABEL[s]}</div>
+                <div class="muted" style="font-size:12px;">${order.timeline.find(t=>t.status===s) ? UI.timeAgo(order.timeline.find(t=>t.status===s).at) : 'Pending'}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        ${order.status === 'pending' ? `<button class="btn btn-outline" id="cancelBtn" style="color:var(--danger);border-color:var(--danger);">Cancel Order</button>` : ''}
+      </div>
+    `;
+
+    const map = L.map('trackMap', { zoomControl: false, dragging: true, scrollWheelZoom: false }).setView([order.pickup.lat, order.pickup.lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    const pIcon = L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#FF7A1A;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);"></div>', iconSize:[14,14], iconAnchor:[7,7] });
+    const dIcon = L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#241710;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);"></div>', iconSize:[14,14], iconAnchor:[7,7] });
+    L.marker([order.pickup.lat, order.pickup.lng], { icon: pIcon }).addTo(map);
+    L.marker([order.dropoff.lat, order.dropoff.lng], { icon: dIcon }).addTo(map);
+    const line = L.polyline([[order.pickup.lat, order.pickup.lng],[order.dropoff.lat, order.dropoff.lng]], { color:'#E8610A', weight:3, dashArray:'2 8' }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [24,24] });
+
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', async () => {
+      await Store.updateOrderStatus(order.id, 'cancelled');
+      UI.showToast('Order cancelled', 'success');
+      setTimeout(() => location.href = 'order-history.html', 400);
+    });
+  })();
+</script>
+</body>
+</html>
