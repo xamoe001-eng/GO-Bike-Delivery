@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// Example production security rules for the Firestore data model described
+// in js/firebase.js. Deploy with: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function myUid() { return request.auth.uid; }
+    function myRole() { return get(/databases/$(database)/documents/users/$(myUid())).data.role; }
+    function isAdmin() { return isSignedIn() && myRole() == 'admin'; }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (myUid() == userId || isAdmin());
+      allow create: if isSignedIn() && myUid() == userId;
+      allow update: if isSignedIn() && (myUid() == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /riders/{riderId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (myUid() == riderId || isAdmin());
+    }
+
+    match /orders/{orderId} {
+      allow create: if isSignedIn() && request.resource.data.customerId == myUid();
+      allow read: if isSignedIn() && (
+        resource.data.customerId == myUid() ||
+        resource.data.riderId == myUid() ||
+        isAdmin()
+      );
+      // Riders may only claim pending orders or update ones already theirs.
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.customerId == myUid() ||
+        resource.data.riderId == myUid() ||
+        (myRole() == 'rider' && resource.data.status == 'pending')
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /rateCards/{city} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow read, update: if isSignedIn() && resource.data.userId == myUid();
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.userId == myUid();
+    }
+  }
+}

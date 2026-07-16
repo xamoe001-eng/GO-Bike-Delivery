@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GO Bike Delivery — Fast City Courier</title>
+<meta name="description" content="Book a rider in seconds. GO Bike Delivery is a same-city parcel courier for customers, riders and dispatch admins.">
+<meta name="theme-color" content="#1C120C">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="landing">
+  <div class="landing__hero">
+    <div class="landing__logo">
+      <div class="landing__logo-mark">
+        <svg viewBox="0 0 24 24"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 9h4l2.5 4.5"/><path d="M9 9 8 6H6"/><path d="M12 13h4.5l2 4.5"/></svg>
+      </div>
+      <div>
+        <div style="font-family:var(--font-display);font-weight:800;font-size:16px;line-height:1;">GO BIKE</div>
+        <div style="font-size:10px;letter-spacing:.12em;color:var(--orange-400);font-weight:700;">DELIVERY</div>
+      </div>
+    </div>
+    <h1 class="landing__title">Anything.<br>Anywhere. Fast.</h1>
+    <p class="landing__sub">On-demand parcel delivery across Myanmar's biggest cities — book a rider in under a minute.</p>
+  </div>
+
+  <div class="landing__cards">
+    <p class="eyebrow" style="margin-bottom:2px;">Continue as</p>
+
+    <button class="role-card" data-role="customer">
+      <div class="role-card__icon" style="background:linear-gradient(135deg,var(--orange-400),var(--orange-700));">
+        <svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+      </div>
+      <div class="role-card__text"><h3>Customer</h3><p>Send a parcel across town</p></div>
+      <svg class="role-card__arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+
+    <button class="role-card" data-role="rider">
+      <div class="role-card__icon" style="background:linear-gradient(135deg,#5C3A28,#241710);">
+        <svg viewBox="0 0 24 24"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 9h4l2.5 4.5"/><path d="M9 9 8 6H6"/><path d="M12 13h4.5l2 4.5"/></svg>
+      </div>
+      <div class="role-card__text"><h3>Rider</h3><p>Earn by delivering nearby orders</p></div>
+      <svg class="role-card__arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+
+    <button class="role-card" data-role="admin">
+      <div class="role-card__icon" style="background:linear-gradient(135deg,#3A2418,#1C120C);">
+        <svg viewBox="0 0 24 24"><path d="M3 13h4v8H3zM10 8h4v13h-4zM17 3h4v18h-4z"/></svg>
+      </div>
+      <div class="role-card__text"><h3>Admin</h3><p>Manage riders, rates & orders</p></div>
+      <svg class="role-card__arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+
+    <p class="muted" style="text-align:center;margin-top:10px;">Demo accounts are pre-filled — just tap Continue.</p>
+  </div>
+</div>
+
+<!-- Auth Sheet -->
+<div class="sheet-overlay" id="overlay"></div>
+<div class="sheet" id="authSheet">
+  <div class="sheet__handle"></div>
+  <div class="row-between mb-16">
+    <h2 class="h2" id="sheetTitle">Customer Login</h2>
+    <button class="btn-icon" id="closeSheet"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <div class="role-tabs" id="modeTabs">
+    <button class="role-tab active" data-mode="login"><span>Log In</span></button>
+    <button class="role-tab" data-mode="register"><span>Register</span></button>
+  </div>
+
+  <form id="authForm" class="stack">
+    <div class="field" data-field="name" style="display:none;">
+      <label>Full name</label>
+      <input class="input" id="fName" placeholder="e.g. Thiri Aung">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input class="input" id="fEmail" type="email" placeholder="you@email.com" required>
+    </div>
+    <div class="field" data-field="phone" style="display:none;">
+      <label>Phone number</label>
+      <input class="input" id="fPhone" placeholder="09-xxx-xxx-xxx">
+    </div>
+    <div class="field" data-field="vehicle" style="display:none;">
+      <label>Vehicle model</label>
+      <input class="input" id="fVehicle" placeholder="e.g. Honda Wave 110">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input class="input" id="fPassword" type="password" placeholder="••••••••" required>
+    </div>
+    <button class="btn btn-primary mt-8" type="submit" id="submitBtn">Log In</button>
+    <p class="muted" style="text-align:center;" id="demoHint">Demo: customer@demo.com / demo1234</p>
+  </form>
+</div>
+
+<script src="js/firebase.js"></script>
+<script src="js/store.js"></script>
+<script src="js/fee-calculator.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/seed.js"></script>
+<script>
+  const overlay = document.getElementById('overlay');
+  const sheet = document.getElementById('authSheet');
+  const modeTabs = document.getElementById('modeTabs');
+  const authForm = document.getElementById('authForm');
+  const sheetTitle = document.getElementById('sheetTitle');
+  const submitBtn = document.getElementById('submitBtn');
+  const demoHint = document.getElementById('demoHint');
+  let currentRole = 'customer';
+  let currentMode = 'login';
+
+  const DEMO_CREDS = {
+    customer: 'customer@demo.com',
+    rider: 'rider@demo.com',
+    admin: 'admin@demo.com'
+  };
+  const ROLE_LABEL = { customer: 'Customer', rider: 'Rider', admin: 'Admin' };
+  const ROLE_HOME = { customer: 'customer/dashboard.html', rider: 'rider/dashboard.html', admin: 'admin/dashboard.html' };
+
+  function syncFormFields() {
+    document.querySelector('[data-field="name"]').style.display = currentMode === 'register' ? 'flex' : 'none';
+    document.querySelector('[data-field="phone"]').style.display = currentMode === 'register' ? 'flex' : 'none';
+    document.querySelector('[data-field="vehicle"]').style.display = (currentMode === 'register' && currentRole === 'rider') ? 'flex' : 'none';
+    sheetTitle.textContent = `${ROLE_LABEL[currentRole]} ${currentMode === 'login' ? 'Login' : 'Register'}`;
+    submitBtn.textContent = currentMode === 'login' ? 'Log In' : `Create ${ROLE_LABEL[currentRole]} Account`;
+    demoHint.style.display = currentMode === 'login' ? 'block' : 'none';
+    demoHint.textContent = `Demo: ${DEMO_CREDS[currentRole]} / demo1234`;
+    document.getElementById('fEmail').value = currentMode === 'login' ? DEMO_CREDS[currentRole] : '';
+    document.getElementById('fPassword').value = currentMode === 'login' ? 'demo1234' : '';
+  }
+
+  document.querySelectorAll('.role-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      currentRole = card.dataset.role;
+      currentMode = 'login';
+      modeTabs.querySelectorAll('.role-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === 'login'));
+      syncFormFields();
+      UI.openSheet(sheet, overlay);
+    });
+  });
+
+  modeTabs.querySelectorAll('.role-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      currentMode = tab.dataset.mode;
+      modeTabs.querySelectorAll('.role-tab').forEach(t => t.classList.toggle('active', t === tab));
+      syncFormFields();
+    });
+  });
+
+  document.getElementById('closeSheet').addEventListener('click', () => UI.closeSheet(sheet, overlay));
+  overlay.addEventListener('click', () => UI.closeSheet(sheet, overlay));
+
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="loader"></span>';
+    try {
+      const email = document.getElementById('fEmail').value.trim();
+      const password = document.getElementById('fPassword').value;
+      if (currentMode === 'login') {
+        await Auth.login({ email, password, expectedRole: currentRole });
+      } else {
+        const name = document.getElementById('fName').value.trim();
+        const phone = document.getElementById('fPhone').value.trim();
+        const vehicle = document.getElementById('fVehicle').value.trim();
+        if (!name) throw new Error('Please enter your full name.');
+        await Auth.register({ role: currentRole, name, email, password, phone, vehicle });
+      }
+      UI.showToast('Welcome to GO Bike Delivery!', 'success');
+      setTimeout(() => (location.href = ROLE_HOME[currentRole]), 500);
+    } catch (err) {
+      UI.showToast(err.message, 'error');
+      submitBtn.disabled = false;
+      syncFormFields();
+    }
+  });
+
+  // Skip landing if already signed in
+  const existingSession = window.Store && window.Store.getSession();
+  if (existingSession) {
+    // Defer to allow seed.js to finish on very first paint
+    setTimeout(() => { if (ROLE_HOME[existingSession.role]) location.href = ROLE_HOME[existingSession.role]; }, 50);
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
